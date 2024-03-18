@@ -1,4 +1,26 @@
+import socket
 import sys
+
+def http_request(url):
+    parts = url.split('/')
+    host = parts[2]
+    path = '/' + '/'.join(parts[3:])
+    
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    
+    s.connect((host, 80))
+    request = f"GET {path} HTTP/1.1\r\nHost: {host}\r\n\r\n"
+    s.send(request.encode())
+    
+    response = b''
+    while True:
+        data = s.recv(1024)
+        if not data:
+            break
+        response += data
+    
+    s.close()
+    print(response.decode())
 
 def show_help():
     print("Usage: go2web [options]")
