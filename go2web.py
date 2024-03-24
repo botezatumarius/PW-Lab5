@@ -35,7 +35,7 @@ def print_strings_in_tags(soup):
                     if tag.has_attr('href'):
                         print("\033[92m", tag['href'], "\033[97m")
 
-def https_request(url, sock, toPrint,cache):
+def https_request(url, sock, toPrint,cache,optionalKey=''):
     host = url.split('/', 3)[2]
     path = ""
     try:
@@ -72,13 +72,16 @@ def https_request(url, sock, toPrint,cache):
         redirect_location = find_redirect_location(html_content)
         if redirect_location:
             print("Redirecting to:", redirect_location)
-            return https_request(redirect_location, sock)  
+            https_request(redirect_location, sock,toPrint,cache,url)  
         else:
             print("Error - Redirection location not found")
             return None
     elif status_code == "200":
         soup = BeautifulSoup(html_content, "html.parser")
-        cache[url] = html_content
+        if optionalKey:
+            cache[optionalKey] = html_content
+        else:
+            cache[url] = html_content
         save_cache(cache,"cache.json")
         if toPrint:
             print_strings_in_tags(soup)
