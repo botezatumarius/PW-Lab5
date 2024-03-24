@@ -3,6 +3,18 @@ import sys
 import argparse
 from bs4 import BeautifulSoup, NavigableString
 import ssl
+import json
+
+def load_cache(cache_file):
+    try:
+        with open(cache_file, 'r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return {}
+
+def save_cache(cache, cache_file):
+    with open(cache_file, 'w') as file:
+        json.dump(cache, file)
 
 def find_redirect_location(response):
     lines = response.split('\n')
@@ -23,7 +35,7 @@ def print_strings_in_tags(soup):
                     if tag.has_attr('href'):
                         print("\033[92m", tag['href'], "\033[97m")
 
-def https_request(url, sock, toPrint):
+def https_request(url, sock, toPrint,cache):
     host = url.split('/', 3)[2]
     path = ""
     try:
@@ -66,6 +78,8 @@ def https_request(url, sock, toPrint):
             return None
     elif status_code == "200":
         soup = BeautifulSoup(html_content, "html.parser")
+        cache[url] = html_content
+        save_cache(cache,"cache.json")
         if toPrint:
             print_strings_in_tags(soup)
         return soup
@@ -80,6 +94,8 @@ def lookUp(list,sock):
     searchTerm = searchTerm[:-1]
     url = f"https://www.google.com/search?q={searchTerm}"
     soup = https_request(url,sock,0)
+    soup.prettify()
+    print(soup)
     
     for h3_tag in soup.find_all('h3'):
         title = h3_tag.getText()
@@ -104,7 +120,14 @@ if __name__ == "__main__":
     parser.add_argument("-s",nargs='+', help="Make an HTTP request to search the term using google and print top 10 results")
     args = parser.parse_args()
 
-    if args.u:
-        https_request(args.u,sock,1)
+    cache_file = "cache.json"
+    cache = load_cache(cache_file)
+    if (args.u and cache.get(args.u[0]) is None):
+        https_request(args.u[0],sock,1,cache)
+    else:
+        print("\033[93mURL exists in cache!\033[0m")
+        cachedResponse = cache.get(args.u[0])
+        soup = BeautifulSoup(cachedResponse, "html.parser")
+        print_strings_in_tags(soup)
     if args.s:
         lookUp(args.s,sock)
