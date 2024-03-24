@@ -90,15 +90,17 @@ def https_request(url, sock, toPrint,cache,optionalKey=''):
         print("Error - Received status:", status_code)
         return None
     
-def lookUp(list,sock):
+def lookUp(list,sock,cache):
     searchTerm = ""
     for word in list:
         searchTerm += word + '+'
     searchTerm = searchTerm[:-1]
     url = f"https://www.google.com/search?q={searchTerm}"
-    soup = https_request(url,sock,0)
-    soup.prettify()
-    print(soup)
+    if cache.get(url) is None:
+        soup = https_request(url,sock,0,cache)
+    else:
+        soup = BeautifulSoup(cache.get(url), "html.parser")
+        print("\033[93mTerm exists in cache!\033[0m")
     
     for h3_tag in soup.find_all('h3'):
         title = h3_tag.getText()
@@ -127,10 +129,10 @@ if __name__ == "__main__":
     cache = load_cache(cache_file)
     if (args.u and cache.get(args.u[0]) is None):
         https_request(args.u[0],sock,1,cache)
-    else:
+    elif (args.u and cache.get(args.u[0]) is not None):
         print("\033[93mURL exists in cache!\033[0m")
         cachedResponse = cache.get(args.u[0])
         soup = BeautifulSoup(cachedResponse, "html.parser")
         print_strings_in_tags(soup)
-    if args.s:
-        lookUp(args.s,sock)
+    elif args.s:
+        lookUp(args.s,sock,cache)
