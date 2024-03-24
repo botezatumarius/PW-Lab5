@@ -23,7 +23,7 @@ def print_strings_in_tags(soup):
                     if tag.has_attr('href'):
                         print("\033[92m", tag['href'], "\033[97m")
 
-def https_request(url, sock):
+def https_request(url, sock, toPrint):
     host = url.split('/', 3)[2]
     path = ""
     try:
@@ -49,7 +49,10 @@ def https_request(url, sock):
         ssock.close()
         sock.close()
 
-    html_content = response.decode('UTF-8')
+    try:
+        html_content = response.decode('UTF-8')
+    except:
+        html_content = response.decode('latin-1')
     
     status_code = html_content.split(' ',2)[1]
     
@@ -63,11 +66,32 @@ def https_request(url, sock):
             return None
     elif status_code == "200":
         soup = BeautifulSoup(html_content, "html.parser")
-        print_strings_in_tags(soup)
-
+        if toPrint:
+            print_strings_in_tags(soup)
+        return soup
     else:
         print("Error - Received status:", status_code)
         return None
+    
+def lookUp(list,sock):
+    searchTerm = ""
+    for word in list:
+        searchTerm += word + '+'
+    searchTerm = searchTerm[:-1]
+    url = f"https://www.google.com/search?q={searchTerm}"
+    soup = https_request(url,sock,0)
+    
+    for h3_tag in soup.find_all('h3'):
+        title = h3_tag.getText()
+        print("\033[92m", title, "\033[97m")
+        
+        parent_anchor = h3_tag.find_parent('a')
+        if parent_anchor:
+            addr = parent_anchor.get('href')
+            if addr:
+                addr = addr.split("?q=")[-1].split('&')[0]
+                print("\033[94m", addr, "\033[97m")
+
 
 if __name__ == "__main__":
     if(len(sys.argv) == 1):
@@ -76,10 +100,11 @@ if __name__ == "__main__":
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     parser = argparse.ArgumentParser()
-    parser.add_argument("-u", help="Make an HTTP request to the specified URL and print the response")
-    parser.add_argument("-s", help="Make an HTTP request to search the term using google and print top 10 results")
+    parser.add_argument("-u",nargs=1, help="Make an HTTP request to the specified URL and print the response")
+    parser.add_argument("-s",nargs='+', help="Make an HTTP request to search the term using google and print top 10 results")
     args = parser.parse_args()
 
     if args.u:
-        https_request(args.u,sock)
-
+        https_request(args.u,sock,1)
+    if args.s:
+        lookUp(args.s,sock)
