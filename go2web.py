@@ -35,30 +35,47 @@ def print_strings_in_tags(soup):
                     if tag.has_attr('href'):
                         print("\033[92m", tag['href'], "\033[97m")
 
-def https_request(url, sock, toPrint,cache,optionalKey=''):
+def https_request(url, sock, toPrint,cache,optionalKey='',secure=''):
+    if 'https://' in url:
+        secure = True
     host = url.split('/', 3)[2]
     path = ""
     try:
         path = url.split('/', 3)[3]
     except:
         pass
-
-    context = ssl.create_default_context()
-    sock = socket.create_connection((host, 443))
-    ssock = context.wrap_socket(sock, server_hostname=host)
+    
+    ssock = None
+    if secure:
+        sock = socket.create_connection((host, 443))
+        context = ssl.create_default_context()
+        ssock = context.wrap_socket(sock, server_hostname=host)
+    else:
+        sock = socket.create_connection((host, 80))
 
     try:
-        ssock.send(bytes(f"GET /{path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n", 'UTF-8'))
-
+        if secure:
+            ssock.send(bytes(f"GET /{path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n", 'UTF-8'))
+        else:
+            sock.send(bytes(f"GET /{path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n", 'UTF-8'))
         response = b""
-        while True:
-            block = ssock.recv(4096)
-            if not block:
-                break
-            response += block
+
+        if secure:
+            while True:
+                block = ssock.recv(4096)
+                if not block:
+                    break
+                response += block
+        else:
+            while True:
+                block = sock.recv(4096)
+                if not block:
+                    break
+                response += block
 
     finally:
-        ssock.close()
+        if secure:
+            ssock.close()
         sock.close()
 
     try:
@@ -72,7 +89,7 @@ def https_request(url, sock, toPrint,cache,optionalKey=''):
         redirect_location = find_redirect_location(html_content)
         if redirect_location:
             print("Redirecting to:", redirect_location)
-            https_request(redirect_location, sock,toPrint,cache,url)  
+            https_request(redirect_location, sock,toPrint,cache,url,"true")  
         else:
             print("Error - Redirection location not found")
             return None
